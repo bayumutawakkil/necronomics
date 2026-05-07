@@ -1,26 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏴 Necroconomics — Dark Absurdist Idle Colony Management
 
-## Getting Started
+A website-based idle colony management game where **death powers your economy**. Build an undead workforce, optimize production chains, and manage the inevitable decay of your workers.
 
-First, run the development server:
+## 🎮 Quick Start
+
+The development server is running at **http://localhost:3000**
+
+### Available Scripts
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev      # Start development server
+npm run build    # Build for production  
+npm start        # Start production server
+npm run lint     # Run ESLint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🛠️ Tech Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Framework:** Next.js 16 (App Router)
+- **UI:** React 19 + Tailwind CSS 4
+- **State:** Zustand with immer & persist
+- **Language:** TypeScript (strict mode)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📁 Project Structure
 
-## Learn More
+```
+app/              Main game page
+components/ui/    React UI components
+stores/           Zustand state management
+lib/game/         Game logic & constants
+types/            TypeScript game types
+public/           Static assets
+```
+
+## 🎨 Theme
+
+Custom dark theme with necromantic colors:
+- **Charcoal** (#1a1208) - Background
+- **Bone** (#f5ede0) - Primary text
+- **Soul** (#7c6fa0) - Magic effects
+- **Blood** (#8b1a1a) - Danger states
+- **Moss** (#3d5c3a) - Growth/surplus
+
+## 🔧 Setup
+
+No additional environment configuration required. The game runs client-side with local state management.
+
+## 📚 Key Files
+
+- [types/game.ts](./types/game.ts) - Game entity types
+- [stores/useGameStore.ts](./stores/useGameStore.ts) - Game state management
+- [lib/game/constants.ts](./lib/game/constants.ts) - Game constants & formulas
+- [app/page.tsx](./app/page.tsx) - Main game interface
+
+## 🎯 Design Philosophy
+
+**Three Pillars:**
+1. **Death as Resource** — Economy powered by corpses
+2. **Decay as Time Pressure** — Everything deteriorates
+3. **Dark Absurdism** — Serious systems, absurd narrative
+
+## 📖 Development
 
 To learn more about Next.js, take a look at the following resources:
 
