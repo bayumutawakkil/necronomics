@@ -22,26 +22,26 @@ export function ActionButton({
   variant = 'primary',
 }: ActionButtonProps) {
   const variantClass = {
-    primary: 'bg-soul/20 hover:bg-soul/30 text-bone border-soul/30 hover:border-soul/70 shadow-[0_0_15px_rgba(139,92,246,0.1)] hover:shadow-[0_0_25px_rgba(139,92,246,0.3)]',
-    secondary: 'bg-rot/20 hover:bg-rot/30 text-bone border-rot/30 hover:border-rot/70',
-    danger: 'bg-blood/20 hover:bg-blood/30 text-bone border-blood/30 hover:border-blood/70 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:shadow-[0_0_25px_rgba(239,68,68,0.3)]',
-    success: 'bg-moss/20 hover:bg-moss/30 text-bone border-moss/30 hover:border-moss/70 shadow-[0_0_15px_rgba(34,197,94,0.1)] hover:shadow-[0_0_25px_rgba(34,197,94,0.3)]',
+    primary: 'bg-blue-500/20 hover:bg-blue-500/30 text-slate-100 border-blue-500/30 hover:border-blue-500/70 shadow-[0_0_15px_rgba(59,130,246,0.1)] hover:shadow-[0_0_25px_rgba(59,130,246,0.3)]',
+    secondary: 'bg-slate-500/20 hover:bg-slate-500/30 text-slate-100 border-slate-500/30 hover:border-slate-500/70',
+    danger: 'bg-red-500/20 hover:bg-red-500/30 text-slate-100 border-red-500/30 hover:border-red-500/70 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:shadow-[0_0_25px_rgba(239,68,68,0.3)]',
+    success: 'bg-emerald-500/20 hover:bg-emerald-500/30 text-slate-100 border-emerald-500/30 hover:border-emerald-500/70 shadow-[0_0_15px_rgba(16,185,129,0.1)] hover:shadow-[0_0_25px_rgba(16,185,129,0.3)]',
   }[variant];
 
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`relative overflow-hidden group w-full px-5 py-4 font-bold rounded-xl transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between border backdrop-blur-md ${variantClass} ${colorClass || ''}`}
+      className={`relative overflow-hidden group w-full px-5 py-4 font-bold rounded-lg transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between border backdrop-blur-md ${variantClass} ${colorClass || ''}`}
     >
       <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out z-0 pointer-events-none"></div>
       
       <span className="relative z-10 flex items-center gap-3">
-        <span className="text-2xl filter grayscale contrast-150 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] group-hover:scale-110 transition-transform duration-300">{icon}</span>
-        <span className="font-['Cinzel'] tracking-wider text-sm uppercase">{label}</span>
+        <span className="text-2xl group-hover:scale-110 transition-transform duration-300">{icon}</span>
+        <span className="font-semibold tracking-wide text-sm uppercase">{label}</span>
       </span>
       {cost && (
-        <span className="relative z-10 text-xs font-mono bg-black/40 border border-white/10 px-3 py-1.5 rounded-md backdrop-blur-sm shadow-inner">
+        <span className="relative z-10 text-xs font-mono bg-slate-900/60 border border-slate-600/50 px-3 py-1.5 rounded backdrop-blur-sm">
           {cost}
         </span>
       )}

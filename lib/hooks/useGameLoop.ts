@@ -8,6 +8,7 @@ import { useEffect, useRef } from 'react';
 import { useGameStore } from '@/stores/useGameStore';
 import { GAME_CONFIG } from '@/lib/game/constants';
 import { calculateOfflineProgress } from '@/lib/game/calculations';
+import { enableDebugMode } from '@/lib/game/debug';
 
 /**
  * Main game loop hook
@@ -20,13 +21,20 @@ export function useGameLoop() {
   const loadGame = useGameStore((state) => state.loadGame);
 
   useEffect(() => {
+    // Enable debug mode in development
+    if (process.env.NODE_ENV === 'development') {
+      enableDebugMode();
+    }
+
     // Calculate offline progress on mount
     const offlineTicks = calculateOfflineProgress(lastSaved, GAME_CONFIG.OFFLINE_PROGRESS_CAP);
     if (offlineTicks > 0) {
+      console.log(`⏰ Processing ${offlineTicks} offline ticks...`);
       // Apply offline progress
       for (let i = 0; i < offlineTicks; i++) {
         processTick();
       }
+      console.log('✅ Offline progress applied');
     }
   }, []);
 
@@ -34,6 +42,10 @@ export function useGameLoop() {
     // Main game loop
     const interval = setInterval(() => {
       processTick();
+      
+      // Also update research progress
+      const { useResearchStore } = require('@/stores/useResearchStore');
+      useResearchStore.getState().updateResearchProgress(1); // 1 second
     }, GAME_CONFIG.TICK_INTERVAL);
 
     return () => clearInterval(interval);

@@ -4,6 +4,17 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist } from 'zustand/middleware';
 import { GameState, Resources, Unit, Building, ProductionChain } from '@/types/game';
+import { useResearchStore } from '@/stores/useResearchStore';
+import { GAME_CONFIG } from '@/lib/game/constants';
+import {
+  calculateBuildingEfficiency,
+  calculateBuildingUpgradeCost,
+  calculateUnitEfficiencyBonus,
+  calculateMaintenanceMultiplier,
+  calculateTotalResourceRates,
+  getBuildingEffectiveStats,
+  getUnitEffectiveStats,
+} from '@/lib/game/calculations';
 
 const INITIAL_RESOURCES: Resources = {
   corpse: 10,
@@ -25,6 +36,27 @@ const INITIAL_STATE: GameState = {
   units: [],
   buildings: [],
   productionChains: [],
+  unitCostMultipliers: {
+    skeleton: 1,
+    zombie: 1,
+    ghoul: 1,
+    ghost: 1,
+    vampire: 1,
+  },
+  unitCreatedCounts: {
+    skeleton: 0,
+    zombie: 0,
+    ghoul: 0,
+    ghost: 0,
+    vampire: 0,
+  },
+  unitCurrentCounts: {
+    skeleton: 0,
+    zombie: 0,
+    ghoul: 0,
+    ghost: 0,
+    vampire: 0,
+  },
   tick: 0,
   lastSaved: Date.now(),
   gamePhase: 'early',
@@ -54,6 +86,7 @@ interface GameStore extends GameState {
   addBuilding: (building: Building) => void;
   removeBuilding: (buildingId: string) => void;
   updateBuilding: (buildingId: string, updates: Partial<Building>) => void;
+  upgradeBuilding: (buildingId: string) => { success: boolean; message: string };
 
   // Game loop
   processTick: () => void;
@@ -103,10 +136,18 @@ export const useGameStore = create<GameStore>()(
         set((state) => {
           state.units.push(unit);
           state.stats.total_undead_created += 1;
+          // Increment current count for this unit type
+          state.unitCurrentCounts[unit.type] += 1;
+          state.unitCreatedCounts[unit.type] += 1;
         }),
 
       removeUnit: (unitId) =>
         set((state) => {
+          const unit = state.units.find(u => u.id === unitId);
+          if (unit) {
+            // Decrement current count when unit dies
+            state.unitCurrentCounts[unit.type] = Math.max(0, state.unitCurrentCounts[unit.type] - 1);
+          }
           // Unassign if assigned to a building
           state.buildings.forEach((b) => {
             if (b.assigned_units) {
@@ -133,6 +174,11 @@ export const useGameStore = create<GameStore>()(
 
       removeBuilding: (buildingId) =>
         set((state) => {
+          state.units.forEach((u) => {
+            if (u.assigned_to === buildingId) {
+              u.assigned_to = undefined;
+            }
+          });
           state.buildings = state.buildings.filter((b) => b.id !== buildingId);
         }),
 
@@ -144,6 +190,42 @@ export const useGameStore = create<GameStore>()(
           }
         }),
 
+      upgradeBuilding: (buildingId) => {
+        const state = get();
+        const building = state.buildings.find((item) => item.id === buildingId);
+
+        if (!building) {
+          return { success: false, message: 'Building not found.' };
+        }
+
+        if (building.level >= GAME_CONFIG.MAX_BUILDING_LEVEL) {
+          return { success: false, message: 'Building is already at maximum level.' };
+        }
+
+        const newLevel = building.level + 1;
+        const cost = calculateBuildingUpgradeCost(building.type, newLevel);
+        if (state.resources.bone < cost) {
+          return {
+            success: false,
+            message: `Need ${cost} bone to upgrade to level ${newLevel}.`,
+          };
+        }
+
+        set((nextState) => {
+          const target = nextState.buildings.find((item) => item.id === buildingId);
+          if (!target) return;
+
+          nextState.resources.bone -= cost;
+          target.level = newLevel;
+          target.efficiency = calculateBuildingEfficiency(newLevel);
+        });
+
+        return {
+          success: true,
+          message: `${building.type.replace(/_/g, ' ')} upgraded to level ${newLevel}.`,
+        };
+      },
+
       assignUnitToBuilding: (unitId, buildingId) => {
         const state = get();
         const unit = state.units.find((u) => u.id === unitId);
@@ -153,7 +235,16 @@ export const useGameStore = create<GameStore>()(
 
         set((s) => {
           const u = s.units.find((x) => x.id === unitId);
-          if (u) u.assigned_to = buildingId;
+          if (u) {
+            const prevBuildingId = u.assigned_to;
+            if (prevBuildingId) {
+              const prevB = s.buildings.find((x) => x.id === prevBuildingId);
+              if (prevB) {
+                prevB.assigned_units = (prevB.assigned_units ?? []).filter((id) => id !== unitId);
+              }
+            }
+            u.assigned_to = buildingId;
+          }
           const b = s.buildings.find((x) => x.id === buildingId);
           if (b && !(b.assigned_units ?? []).includes(unitId)) {
             b.assigned_units = b.assigned_units ?? [];
@@ -180,6 +271,8 @@ export const useGameStore = create<GameStore>()(
 
       // Game loop
       processTick: () => {
+        const completedResearches = useResearchStore.getState().completedResearches;
+
         set((state) => {
           state.tick += 1;
 
@@ -192,31 +285,45 @@ export const useGameStore = create<GameStore>()(
               // Guard: assigned_units may be undefined on old persisted saves
               const assignedUnits: string[] = building.assigned_units ?? [];
 
-              // Base efficiency + sum of assigned unit efficiencies
-              let totalEfficiency = building.efficiency;
-              assignedUnits.forEach((unitId) => {
-                const unit = state.units.find((u) => u.id === unitId);
-                if (unit) {
-                  totalEfficiency += unit.efficiency;
-                }
-              });
+              // Get actual unit objects
+              const units = assignedUnits
+                .map(id => state.units.find(u => u.id === id))
+                .filter((u): u is Unit => u !== undefined);
+              const buildingStats = getBuildingEffectiveStats(building.type, completedResearches);
+              const effectiveUnits = units.map((unit) => ({
+                ...unit,
+                ...getUnitEffectiveStats(unit.type, completedResearches),
+              }));
 
-              // Deduct maintenance/input costs first
+              // Calculate efficiency bonus from assigned units
+              const unitEfficiencyBonus = calculateUnitEfficiencyBonus(effectiveUnits);
+              const totalEfficiency = building.efficiency + unitEfficiencyBonus;
+
+              // Calculate scaled maintenance cost (increases with more units)
+              const maintenanceMultiplier = calculateMaintenanceMultiplier(unitEfficiencyBonus);
+
+              // Check if we can afford all inputs first (transactional logic)
               let canProduce = true;
-              Object.entries(building.maintenance_cost).forEach(([resource, cost]) => {
+              Object.entries(buildingStats.maintenance_cost).forEach(([resource, cost]) => {
                 if (cost && cost > 0) {
+                  const scaledCost = cost * maintenanceMultiplier;
                   const available = state.resources[resource as keyof typeof state.resources];
-                  if (available < cost) {
+                  if (available < scaledCost) {
                     canProduce = false;
-                  } else {
-                    state.resources[resource as keyof typeof state.resources] -= cost;
                   }
                 }
               });
 
-              // Produce output only if inputs were available
+              // Deduct inputs and produce outputs only if we could afford all inputs
               if (canProduce) {
-                Object.entries(building.production_rate).forEach(([resource, rate]) => {
+                Object.entries(buildingStats.maintenance_cost).forEach(([resource, cost]) => {
+                  if (cost && cost > 0) {
+                    const scaledCost = cost * maintenanceMultiplier;
+                    state.resources[resource as keyof typeof state.resources] -= scaledCost;
+                  }
+                });
+
+                Object.entries(buildingStats.production_rate).forEach(([resource, rate]) => {
                   if (rate && rate > 0) {
                     const production = rate * totalEfficiency;
                     state.resources[resource as keyof typeof state.resources] += production;
@@ -228,19 +335,31 @@ export const useGameStore = create<GameStore>()(
 
           // Process unit decay and maintenance
           state.units.forEach((unit) => {
+            const unitStats = getUnitEffectiveStats(unit.type, completedResearches);
+
             // Decay freshness
-            unit.freshness = Math.max(0, unit.freshness - unit.decay_rate);
+            unit.freshness = Math.max(0, unit.freshness - unitStats.decay_rate);
 
             // Deduct maintenance cost — clamp to 0, never go negative
-            Object.entries(unit.maintenance_cost || {}).forEach(([resource, cost]) => {
+            Object.entries(unitStats.maintenance_cost || {}).forEach(([resource, cost]) => {
               const key = resource as keyof typeof state.resources;
               state.resources[key] = Math.max(0, state.resources[key] - cost);
             });
 
-            // Dead units (freshness = 0) drop resources
+            // Dead units (freshness = 0) drop resources, clear references, and decrement counts
             if (unit.freshness <= 0) {
               state.resources.bone += 2;
               state.resources.flesh += 3;
+
+              // Decrement current count
+              state.unitCurrentCounts[unit.type] = Math.max(0, state.unitCurrentCounts[unit.type] - 1);
+
+              // Unassign from building
+              state.buildings.forEach((b) => {
+                if (b.assigned_units) {
+                  b.assigned_units = b.assigned_units.filter((id) => id !== unit.id);
+                }
+              });
             }
           });
 
@@ -258,6 +377,13 @@ export const useGameStore = create<GameStore>()(
           else if (processed >= 1000) state.gamePhase = 'late';
           else if (processed >= 100) state.gamePhase = 'mid';
           else state.gamePhase = 'early';
+
+          // Recalculate resource rates for the UI
+          state.resourceRates = calculateTotalResourceRates(
+            state.buildings,
+            state.units,
+            completedResearches,
+          );
 
           // Auto-save timestamp every 60 ticks
           if (state.tick % 60 === 0) {

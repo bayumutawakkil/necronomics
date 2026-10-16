@@ -5,7 +5,7 @@
 
 export type GamePhase = 'early' | 'mid' | 'late' | 'endgame';
 export type UnitType = 'skeleton' | 'zombie' | 'ghoul' | 'ghost' | 'vampire';
-export type BuildingType = 'morgue' | 'bone_mill' | 'necro_factory' | 'ritual_chamber' | 'decay_pit';
+export type BuildingType = 'morgue' | 'bone_mill' | 'necro_factory' | 'ritual_chamber' | 'decay_pit' | 'graveyard';
 export type ResourceType = 
   | 'corpse' 
   | 'bone' 
@@ -89,6 +89,11 @@ export interface GameState {
   buildings: Building[];
   productionChains: ProductionChain[];
 
+  // Unit cost tracking (increases with each unit created, decreases when unit dies)
+  unitCostMultipliers: Record<UnitType, number>;
+  unitCreatedCounts: Record<UnitType, number>; // Total ever created
+  unitCurrentCounts: Record<UnitType, number>; // Currently alive
+
   // Game progression
   tick: number;
   lastSaved: number;
@@ -167,4 +172,5 @@ export const BUILDING_NAMES: Record<BuildingType, string> = {
   necro_factory: 'Necromantic Factory',
   ritual_chamber: 'Ritual Chamber',
   decay_pit: 'Decay Pit',
+  graveyard: 'Graveyard',
 };

@@ -48,6 +48,41 @@ No additional environment configuration required. The game runs client-side with
 
 ## 📚 Key Files
 
+### Full Game Documentation
+
+Dokumentasi lengkap mengenai konsep game, gameplay loop, formula ekonomi, struktur
+teknis, UI/UX, penyimpanan, research, dan known issues tersedia di
+[`docs/GAME_DOCUMENTATION.md`](./docs/GAME_DOCUMENTATION.md).
+
+### Game Mechanics
+
+#### Unit-Building Assignment System
+
+Units can be assigned to buildings to boost production, with a risk/reward tradeoff:
+
+**Output Scaling:**
+- Base production = `production_rate × building_efficiency`
+- With units: `production_rate × (building_efficiency + Σ unit_efficiency)`
+- Each unit adds their efficiency (0.6-1.0) to total output
+
+**Input Scaling:**
+- Base consumption = `maintenance_cost`
+- With units: `maintenance_cost × (1 + unit_efficiency_bonus × 0.5)`
+- More workers = 50% more resource consumption per efficiency point
+
+**Example:**
+- Bone Mill: 2.0 flesh/s output, 5.0 bone/s input (base)
+- +2 Zombies (0.6 efficiency each): 
+  - Output: 2.0 × (1.0 + 1.2) = **4.4 flesh/s** (+120%)
+  - Input: 5.0 × (1 + 1.2 × 0.5) = **8.0 bone/s** (+60%)
+
+This creates strategic depth: assign too many units and you'll run out of input resources!
+
+**Implementation:**
+- `stores/useGameStore.ts` - processTick() handles production
+- `lib/game/calculations.ts` - Helper functions for scaling
+- `components/ui/BuildingCard.tsx` - UI displays scaled rates
+
 - [types/game.ts](./types/game.ts) - Game entity types
 - [stores/useGameStore.ts](./stores/useGameStore.ts) - Game state management
 - [lib/game/constants.ts](./lib/game/constants.ts) - Game constants & formulas
